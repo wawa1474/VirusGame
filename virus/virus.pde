@@ -1,3 +1,5 @@
+boolean DoSimCells = true;
+
 int WORLD_SIZE = 12;
 int W_W = 1728;
 int W_H = 972;
@@ -19,12 +21,17 @@ double WALL_DAMAGE = 0.01;
 double CODON_DEGRADE_SPEED = 0.008;
 double EPS = 0.00000001;
 
-String starterGenome = "46-11-22-33-11-22-33-45-44-57__-67__";
+//String starterGenome = "46-11-22-33-11-22-33-45-44-57__-67__";
+//String starterGenome = "46-11-22-33-11-22-33-45-44-57__-67__";
+String starterGenome =   "EG-BB-CC-DD-BB-CC-DD-EF-EE-FHee-GHee";
+//String starterGenome;
+//String starterGenome = "46-11-22-33-45-44-57__-67__";
+//String starterGenome = "00";
 boolean canDrag = false;
 double clickWorldX = -1;
 double clickWorldY = -1;
 boolean DQclick = false;
-int[] codonToEdit = {-1,-1,0,0};
+int[] codonToEdit = {VirusInfo.Codon_Edit_CR_None,VirusInfo.Codon_Edit_CR_None,0,0};
 double[] genomeListDims = {70,430,360,450};
 double[] editListDims = {550,430,180,450};
 double[] arrowToDraw = null;
@@ -32,18 +39,49 @@ Cell selectedCell = null;
 Cell UGOcell;
 int lastEditTimeStamp = 0;
 color handColor = color(0,128,0);
-color TELOMERE_COLOR = color(0,0,0);
 color WASTE_COLOR = color(100,65,0);
-int MAX_CODON_COUNT = 20; // If a cell were to have more codons in its DNA than this number if it were to absorb a cirus particle, it won't absorb it.
+//int MAX_CODON_COUNT = 20; // If a cell were to have more codons in its DNA than this number if it were to absorb a cirus particle, it won't absorb it.
+int MAX_CODON_COUNT = 20;
 
 double SPEED_LOW = 0.01;
 double SPEED_HIGH = 0.02;
 double MIN_ARROW_LENGTH_TO_PRODUCE = 0.4;
 
+boolean wasMouseDown = false;
+double camX = 0;
+double camY = 0;
+double MIN_CAM_S = ((float)W_H)/WORLD_SIZE;//972/12 = 81
+double camS = MIN_CAM_S;
+
 double ZOOM_THRESHOLD = 0;//80;
 PFont font;
 void setup(){
   font = loadFont("Jygquip1-96.vlw");
+  setupWorld();
+  //for(int j = 0; j < 3; j++){
+  //  ArrayList<Particle> newList = new ArrayList<Particle>(0);
+  //  particles.add(newList);
+  //}
+  //for(int y = 0; y < WORLD_SIZE; y++){
+  //  for(int x = 0; x < WORLD_SIZE; x++){
+  //    int t = getTypeFromXY(x,y);
+  //    cells[y][x] = new Cell(x,y,t,0,1,starterGenome);
+  //    if(t == 2){
+  //      START_LIVING_COUNT++;
+  //      cellCounts[0]++;
+  //    }
+  //  }
+  //}
+  size(1728,972);
+  noSmooth();
+  UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,"AA-AA-AA-AA-AA");
+}
+void setupWorld(){
+  frameCount = 0;
+  lastEditTimeStamp = 0;
+  START_LIVING_COUNT=0;
+  cellCounts = new int[]{0,0,0};
+  particles = new ArrayList<ArrayList<Particle>>(0);
   for(int j = 0; j < 3; j++){
     ArrayList<Particle> newList = new ArrayList<Particle>(0);
     particles.add(newList);
@@ -58,48 +96,35 @@ void setup(){
       }
     }
   }
-  size(1728,972);
-  noSmooth();
-  UGOcell = new Cell(-1,-1,2,0,1,"00-00-00-00-00");
 }
-int getTypeFromXY(int preX, int preY){
-  int[] weirdo = {0,1,1,2};
-  int x = (preX/4)*3;
-  x += weirdo[preX%4];
-  int y = (preY/4)*3;
-  y += weirdo[preY%4];
-  int result = 0;
-  for(int i = 1; i < WORLD_SIZE; i *= 3){
-    if((x/i)%3 == 1 && (y/i)%3 == 1){
-      result = 1;
-      int xPart = x%i;
-      int yPart = y%i;
-      boolean left = (xPart == 0);
-      boolean right = (xPart == i-1);
-      boolean top = (yPart == 0);
-      boolean bottom = (yPart == i-1);
-      if(left || right || top || bottom){
-        result = 2;
-      }
-    }
-  }
-  return result;
-}
-
-boolean wasMouseDown = false;
-double camX = 0;
-double camY = 0;
-double MIN_CAM_S = ((float)W_H)/WORLD_SIZE;
-double camS = MIN_CAM_S;
 void draw(){
+  if(key == 'r'){
+    setupWorld();
+    key = ' ';
+  }
+  if(key == 't'){
+    println(selectedCell.memory);
+    key = ' ';
+  }
+  if(key == 'y'){
+    println(selectedCell.genome.getGenomeString());
+    key = ' ';
+  }
   doParticleCountControl();
-  iterate();
+  if(DoSimCells == true){
+    iterate();
+  }
   detectMouse();
   drawBackground();
   drawCells();
   drawParticles();
   drawExtras();
   drawUI();
+}
+void keyPressed(){
+  if(key == 'q'){
+    DoSimCells = !DoSimCells;
+  }
 }
 void drawExtras(){
   if(arrowToDraw != null){
@@ -111,58 +136,18 @@ void drawExtras(){
     drawArrow(arrowToDraw[0],arrowToDraw[1],arrowToDraw[2],arrowToDraw[3]);
   }
 }
-void doParticleCountControl(){
-  ArrayList<Particle> foods = particles.get(0);
-  while(foods.size() < foodLimit){
-    int choiceX = -1;
-    int choiceY = -1;
-    while(choiceX == -1 || cells[choiceY][choiceX].type >= 1){
-      choiceX = (int)random(0,WORLD_SIZE);
-      choiceY = (int)random(0,WORLD_SIZE);
-    }
-    double extraX = random(0.3,0.7);
-    double extraY = random(0.3,0.7);
-    double x = choiceX+extraX;
-    double y = choiceY+extraY;
-    double[] coor = {x,y};
-    Particle newFood = new Particle(coor,0,frameCount);
-    foods.add(newFood);
-    newFood.addToCellList();
-  }
-  
-  ArrayList<Particle> wastes = particles.get(1);
-  if(wastes.size() > foodLimit){
-    removeWasteTimer -= (wastes.size()-foodLimit)*REMOVE_WASTE_SPEED_MULTI;
-    if(removeWasteTimer < 0){
-      int choiceIndex = -1;
-      int iter = 0;
-      while(iter < 50 && (choiceIndex == -1 || getCellAt(wastes.get(choiceIndex).coor,true).type == 2)){
-        choiceIndex = (int)(Math.random()*wastes.size());
-      } // If possible, choose a particle that is NOT in a cell at the moment.
-      wastes.get(choiceIndex).removeParticle();
-      removeWasteTimer++;
-    }
-  }
-}
-double[] getRandomVelo(){
-  double sp = Math.random()*(SPEED_HIGH-SPEED_LOW)+SPEED_LOW;
-  double ang = random(0,2*PI);
-  double vx = sp*Math.cos(ang);
-  double vy = sp*Math.sin(ang);
-  double[] result = {vx, vy};
-  return result;
-}
 void iterate(){
   for(int z = 0; z < 3; z++){
     ArrayList<Particle> sparticles = particles.get(z);
     for(int i = 0; i < sparticles.size(); i++){
       Particle p = sparticles.get(i);
-      p.iterate();
+      //p.iterate();
+      iterateParticle(p);
     }
   }
   for(int y = 0; y < WORLD_SIZE; y++){
     for(int x = 0; x < WORLD_SIZE; x++){
-      cells[y][x].iterate();
+      cells[y][x].iterate();//PARTICLES ARE BAD
     }
   }
 }
@@ -184,15 +169,16 @@ void checkGLclick(){
   double rMouseY = (mouseY-gy)/gh;
   if(rMouseX >= 0 && rMouseX < 1 && rMouseY >= 0){
     if(rMouseY < 1){
-      codonToEdit[0] = (int)(rMouseX*2);
-      codonToEdit[1] = (int)(rMouseY*selectedCell.genome.codons.size());
+      codonToEdit[VirusInfo.Codon_Edit_Col] = (int)(rMouseX*2);
+      codonToEdit[VirusInfo.Codon_Edit_Row] = (int)(rMouseY*selectedCell.getGenomeLength());
+      //println("Col:" + codonToEdit[Codon_Col] + " - Row:" + codonToEdit[Codon_Row]);
     }else if(selectedCell == UGOcell){
       if(rMouseX < 0.5){
         String genomeString = UGOcell.genome.getGenomeStringShortened();
-        selectedCell = UGOcell = new Cell(-1,-1,2,0,1,genomeString);
+        selectedCell = UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,genomeString);
       }else{
         String genomeString = UGOcell.genome.getGenomeStringLengthened();
-        selectedCell = UGOcell = new Cell(-1,-1,2,0,1,genomeString);
+        selectedCell = UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,genomeString);
       }
     }
   }
@@ -205,80 +191,63 @@ void checkETclick(){
   double rMouseX = ((mouseX-W_H)-ex)/ew;
   double rMouseY = (mouseY-ey)/eh;
   if(rMouseX >= 0 && rMouseX < 1 && rMouseY >= 0 && rMouseY < 1){
-    int optionCount = CodonInfo.getOptionSize(codonToEdit[0]);
+    int optionCount = VirusInfo.getOptionSize(codonToEdit[VirusInfo.Codon_Edit_Col]);
     int choice = (int)(rMouseY*optionCount);
-    if(codonToEdit[0] == 1 && choice >= optionCount-2){
+    if(codonToEdit[VirusInfo.Codon_Edit_Col] == VirusInfo.Codon_Minor && choice >= optionCount-2){
       int diff = 1;
       if(rMouseX < 0.5){
         diff = -1;
       }
       if(choice == optionCount-2){
-        codonToEdit[2] = loopCodonInfo(codonToEdit[2]+diff);
+        codonToEdit[VirusInfo.Codon_Edit_RGL_Start] = loopCodonInfo(codonToEdit[VirusInfo.Codon_Edit_RGL_Start]+diff);
       }else{
-        codonToEdit[3] = loopCodonInfo(codonToEdit[3]+diff);
+        codonToEdit[VirusInfo.Codon_Edit_RGL_End] = loopCodonInfo(codonToEdit[VirusInfo.Codon_Edit_RGL_End]+diff);
       }
     }else{
-      Codon thisCodon = selectedCell.genome.codons.get(codonToEdit[1]);
-      if(codonToEdit[0] == 1 && choice == 7){
-        if(thisCodon.codonInfo[1] != 7 ||
-        thisCodon.codonInfo[2] != codonToEdit[2] || thisCodon.codonInfo[3] != codonToEdit[3]){
-          thisCodon.setInfo(1,choice);
-          thisCodon.setInfo(2,codonToEdit[2]);
-          thisCodon.setInfo(3,codonToEdit[3]);
+      Codon thisCodon = selectedCell.genome.getCodon(codonToEdit[VirusInfo.Codon_Edit_Row]);
+      if(codonToEdit[VirusInfo.Codon_Edit_Col] == VirusInfo.Codon_Minor && VirusInfo.Codon_Minor_HasExtraData[choice]){
+        if(thisCodon.codonInfo[VirusInfo.Codon_Minor] != choice ||
+        thisCodon.codonInfo[VirusInfo.Codon_RGL_Start] != codonToEdit[VirusInfo.Codon_Edit_RGL_Start] || thisCodon.codonInfo[VirusInfo.Codon_RGL_End] != codonToEdit[VirusInfo.Codon_Edit_RGL_End]){
+          thisCodon.setInfo(VirusInfo.Codon_Minor,choice);
+          thisCodon.setInfo(VirusInfo.Codon_RGL_Start,codonToEdit[VirusInfo.Codon_Edit_RGL_Start]);
+          thisCodon.setInfo(VirusInfo.Codon_RGL_End,codonToEdit[VirusInfo.Codon_Edit_RGL_End]);
           if(selectedCell != UGOcell){
             lastEditTimeStamp = frameCount;
-            selectedCell.tamper();
+            tamper(selectedCell);
           }
         }
       }else{
-        if(thisCodon.codonInfo[codonToEdit[0]] != choice){
-          thisCodon.setInfo(codonToEdit[0],choice);
+        if(thisCodon.codonInfo[codonToEdit[VirusInfo.Codon_Edit_Col]] != choice){
+          thisCodon.setInfo(codonToEdit[VirusInfo.Codon_Edit_Col],choice);
           if(selectedCell != UGOcell){
             lastEditTimeStamp = frameCount;
-            selectedCell.tamper();
+            tamper(selectedCell);
           }
         }
       }
     }
   }else{
-    codonToEdit[0] = codonToEdit[1] = -1;
+    codonToEdit[VirusInfo.Codon_Edit_Col] = codonToEdit[VirusInfo.Codon_Edit_Row] = VirusInfo.Codon_Edit_CR_None;
   }
-}
-int loopCodonInfo(int val){
-  while(val < -30){
-    val += 61;
-  }
-  while(val > 30){
-    val -= 61;
-  }
-  return val;
-}
-int codonCharToVal(char c){
-  int val = (int)(c) - (int)('A');
-  return val-30;
-}
-String codonValToChar(int i){
-  int val = (i+30) + (int)('A');
-  return (char)val+"";
 }
 void detectMouse(){
   if (mousePressed){
     arrowToDraw = null;
     if(!wasMouseDown) {
       if(mouseX < W_H){
-        codonToEdit[0] = codonToEdit[1] = -1;
+        codonToEdit[VirusInfo.Codon_Edit_Col] = codonToEdit[VirusInfo.Codon_Edit_Row] = VirusInfo.Codon_Edit_CR_None;
         clickWorldX = appXtoTrueX(mouseX);
         clickWorldY = appYtoTrueY(mouseY);
         canDrag = true;
       }else{
         if(selectedCell != null){
-          if(codonToEdit[0] >= 0){
+          if(codonToEdit[VirusInfo.Codon_Edit_Col] >= 0){
             checkETclick();
           }
           checkGLclick();
         }
         if(selectedCell == UGOcell){
-          if((mouseX >= W_H+530 && codonToEdit[0] == -1) || mouseY < 160){
+          if((mouseX >= W_H+530 && codonToEdit[VirusInfo.Codon_Edit_Col] == VirusInfo.Codon_Edit_CR_None) || mouseY < 160){
             selectedCell = null;
           }
         }else if(mouseX > W_W-160 && mouseY < 160){
@@ -315,7 +284,7 @@ void detectMouse(){
         if(selectedCell != UGOcell){
           selectedCell = null;
         }
-        if(clickedCell != null && clickedCell.type == 2){
+        if(clickedCell != null && clickedCell.cellType == VirusInfo.cell_type_cell){
           selectedCell = clickedCell;
         }
       }
@@ -329,7 +298,7 @@ void detectMouse(){
 void mouseWheel(MouseEvent event) {
   double ZOOM_F = 1.05;
   double thisZoomF = 1;
-  float e = event.getCount();
+  double e = event.getCount();
   if(e == 1){
     thisZoomF = 1/ZOOM_F;
   }else{
@@ -340,18 +309,6 @@ void mouseWheel(MouseEvent event) {
   camX = (camX-worldX)/thisZoomF+worldX;
   camY = (camY-worldY)/thisZoomF+worldY;
   camS *= thisZoomF;
-}
-double euclidLength(double[] coor){
-  return Math.sqrt(Math.pow(coor[0]-coor[2],2)+Math.pow(coor[1]-coor[3],2));
-}
-void produceUGO(double[] coor){
-  if(getCellAt(coor,false) != null && getCellAt(coor,false).type == 0){
-    String genomeString = UGOcell.genome.getGenomeString();
-    Particle newUGO = new Particle(coor,2,genomeString,frameCount);
-    particles.get(2).add(newUGO);
-    newUGO.addToCellList();
-    lastEditTimeStamp = frameCount;
-  }
 }
 void drawBackground(){
   background(255);
@@ -371,21 +328,6 @@ void drawArrow(double dx1, double dx2, double dy1, double dy2){
   float x4 = x2+head_size*cos(angle-PI*0.8);
   float y4 = y2+head_size*sin(angle-PI*0.8);
   line(x2,y2,x4,y4);
-}
-String framesToTime(double f){
-  double ticks = f/GENE_TICK_TIME;
-  String timeStr = nf((float)ticks,0,1);
-  if(ticks >= 1000){
-    timeStr = (int)(Math.round(ticks))+"";
-  }
-  return timeStr+"t since";
-}
-String count(int count, String s){
-  if(count == 1){
-    return count+" "+s;
-  }else{
-    return count+" "+s+"s";
-  }
 }
 void drawUI(){
   pushMatrix();
@@ -439,34 +381,27 @@ void drawCellStats(){
     textFont(font,32);
     text("Inside this cell,",555,200);
     text("there are:",555,232);
-    text(count(selectedCell.getParticleCount(-1),"particle"),555,296);
-    text("("+count(selectedCell.getParticleCount(0),"food")+")",555,328);
-    text("("+count(selectedCell.getParticleCount(1),"waste")+")",555,360);
-    text("("+count(selectedCell.getParticleCount(2),"UGO")+")",555,392);
+    text(selectedCell.getParticleCountString(-1,"particle"),555,296);
+    text("("+selectedCell.getParticleCountString(0,"food")+")",555,328);
+    text("("+selectedCell.getParticleCountString(1,"waste")+")",555,360);
+    text("("+selectedCell.getParticleCountString(2,"UGO")+")",555,392);
     drawBar(color(255,255,0),selectedCell.energy,"Energy",290);
     drawBar(color(210,50,210),selectedCell.wallHealth,"Wall health",360);
   }
-  drawGenomeAsList(selectedCell.genome,genomeListDims);
+  drawGenomeAsList(selectedCell.genome,genomeListDims, selectedCell.appRO);
   drawEditTable(editListDims);
   if(!isUGO){
     textFont(font,32);
     textAlign(LEFT);
-    text("Memory: "+getMemory(selectedCell),25,940);
+    text("Memory: "+selectedCell.getMemory(),25,940);
   }
 }
-String getMemory(Cell c){
-  if(c.memory.length() == 0){
-    return "[NOTHING]";
-  }else{
-    return "\""+c.memory+"\"";
-  }
-}
-void drawGenomeAsList(Genome g, double[] dims){
+void drawGenomeAsList(Genome g, double[] dims, double appRO){
   double x = dims[0];
   double y = dims[1];
   double w = dims[2];
   double h = dims[3];
-  int GENOME_LENGTH = g.codons.size();
+  int GENOME_LENGTH = g.genomeCodonCount();//codons.size();
   double appCodonHeight = h/GENOME_LENGTH;
   double appW = w*0.5-margin;
   textFont(font,30);
@@ -474,18 +409,17 @@ void drawGenomeAsList(Genome g, double[] dims){
   pushMatrix();
   dTranslate(x,y);
   pushMatrix();
-  dTranslate(0,appCodonHeight*(g.appRO+0.5));
+  dTranslate(0,appCodonHeight*(appRO+0.5));//g.appRO+0.5));
   if(selectedCell != UGOcell){
     drawGenomeArrows(w,appCodonHeight);
   }
   popMatrix();
   for(int i = 0; i < GENOME_LENGTH; i++){
     double appY = appCodonHeight*i;
-    Codon codon = g.codons.get(i);
+    Codon codon = g.getCodon(i);//codons.get(i);
     for(int p = 0; p < 2; p++){
       double extraX = (w*0.5-margin)*p;
       color fillColor = codon.getColor(p);
-      color textColor = codon.getTextColor(p);
       fill(0);
       dRect(extraX+margin,appY+margin,appW,appCodonHeight-margin*2);
       if(codon.hasSubstance()){
@@ -497,10 +431,10 @@ void drawGenomeAsList(Genome g, double[] dims){
         }
         dRect(trueX,appY+margin,trueW,appCodonHeight-margin*2);
       }
-      fill(textColor);
+      fill(255);
       dText(codon.getText(p),extraX+w*0.25,appY+appCodonHeight/2+11);
       
-      if(p == codonToEdit[0] && i == codonToEdit[1]){
+      if(p == codonToEdit[VirusInfo.Codon_Edit_Col] && i == codonToEdit[VirusInfo.Codon_Edit_Row]){
         double highlightFac = 0.5+0.5*sin(frameCount*0.25);
         fill(255,255,255,(float)(highlightFac*140));
         dRect(extraX+margin,appY+margin,appW,appCodonHeight-margin*2);
@@ -526,31 +460,24 @@ void drawEditTable(double[] dims){
   textFont(font,30);
   textAlign(CENTER);
   
-  int p = codonToEdit[0];
-  int s = codonToEdit[2];
-  int e = codonToEdit[3];
+  int p = codonToEdit[VirusInfo.Codon_Edit_Col];
+  int s = codonToEdit[VirusInfo.Codon_Edit_RGL_Start];
+  int e = codonToEdit[VirusInfo.Codon_Edit_RGL_End];
   if(p >= 0){
     pushMatrix();
     dTranslate(x,y);
-    int choiceCount = CodonInfo.getOptionSize(codonToEdit[0]);
+    int choiceCount = VirusInfo.getOptionSize(codonToEdit[VirusInfo.Codon_Edit_Col]);
     double appChoiceHeight = h/choiceCount;
     for(int i = 0; i < choiceCount; i++){
       double appY = appChoiceHeight*i;
-      color fillColor = intToColor(CodonInfo.getColor(p,i));
-      color textColor = intToColor(CodonInfo.getTextColor(p,i));
+      color fillColor = VirusInfo.getColor(p,i);
       fill(fillColor);
       dRect(margin,appY+margin,appW,appChoiceHeight-margin*2);
-      fill(textColor);
-      dText(CodonInfo.getTextSimple(p, i, s, e),w*0.5,appY+appChoiceHeight/2+11);
+      fill(255);
+      dText(VirusInfo.getTextSimple(p, i, s, e),w*0.5,appY+appChoiceHeight/2+11);
     }
     popMatrix();
   }
-}
-color colorInterp(color a, color b, double x){
-  float newR = (float)(red(a)+(red(b)-red(a))*x);
-  float newG = (float)(green(a)+(green(b)-green(a))*x);
-  float newB = (float)(blue(a)+(blue(b)-blue(a))*x);
-  return color(newR, newG, newB);
 }
 void drawGenomeArrows(double dw, double dh){
   float w = (float)dw;
@@ -604,108 +531,150 @@ void drawCells(){
     }
   }
 }
-double trueXtoAppX(double x){
-  return (x-camX)*camS;
+void produceUGO(double[] coor){
+  if(getCellAt(coor,false) != null && getCellAt(coor,false).cellType == VirusInfo.cell_type_none){
+    String genomeString = UGOcell.genome.getGenomeString();
+    Particle newUGO = new Particle(coor,VirusInfo.particle_type_ugo,genomeString,frameCount);
+    particles.get(2).add(newUGO);
+    //newUGO.addToCellList();
+    addToCellList(newUGO);
+    lastEditTimeStamp = frameCount;
+  }
 }
-double trueYtoAppY(double y){
-  return (y-camY)*camS;
-}
-double appXtoTrueX(double x){
-  return x/camS+camX;
-}
-double appYtoTrueY(double y){
-  return y/camS+camY;
-}
-double trueStoAppS(double s){
-  return s*camS;
-}
-int getCellTypeAt(double x, double y, boolean allowLoop){
-  int ix = (int)x;
-  int iy = (int)y;
-  if(allowLoop){
-    ix = (ix+WORLD_SIZE)%WORLD_SIZE;
-    iy = (iy+WORLD_SIZE)%WORLD_SIZE;
-  }else{
-    if(ix < 0 || ix >= WORLD_SIZE || iy < 0 || iy >= WORLD_SIZE){
-      return 0;
+public void moveDim(Particle p, int d)
+{
+  float visc = (getCellTypeAt(p.coor,true) == 0) ? 1 : 0.5;
+  double[] future = p.copyCoor();
+  future[d] = p.coor[d]+p.velo[d]*visc*PLAY_SPEED;
+  if(cellTransfer(p.coor, future)){
+    int currentType = getCellTypeAt(p.coor,true);
+    int futureType = getCellTypeAt(future,true);
+    if(p.particleType == VirusInfo.particle_type_ugo && currentType == VirusInfo.cell_type_none && futureType == VirusInfo.cell_type_cell && p.particleCodonCount()+getCellAt(future,true).getGenomeLength() <= MAX_CODON_COUNT)
+    { // there are few enough codons that we can fit in the new material!
+      injectGeneticMaterial(p, future);  // UGO is going to inject material into a cell!
+    }
+    else if(futureType == VirusInfo.cell_type_wall || (p.particleType >= VirusInfo.particle_type_waste && (currentType != VirusInfo.cell_type_none || futureType != VirusInfo.cell_type_none)))
+    { // bounce
+      Cell b_cell = getCellAt(future,true);
+      if(b_cell.cellType >= VirusInfo.cell_type_cell)
+      {
+        b_cell.hurtWall(1, p.particleType, p.particleCodonCount());
+      }
+      if(p.velo[d] >= 0)
+      {
+        p.velo[d] = -Math.abs(p.velo[d]);
+        future[d] = (float)Math.ceil(p.coor[d])-EPS;
+      }else
+      {
+        p.velo[d] = Math.abs(p.velo[d]);
+        future[d] = (float)Math.floor(p.coor[d])+EPS;
+      }
+      Cell t_cell = getCellAt(p.coor,true);
+      if(t_cell.cellType >= VirusInfo.cell_type_cell)
+      {
+        t_cell.hurtWall(1, p.particleType, p.particleCodonCount());
+      }
+    }
+    else
+    {
+      while(future[d] >= WORLD_SIZE)
+      {
+        future[d] -= WORLD_SIZE;
+      }
+      while(future[d] < 0)
+      {
+        future[d] += WORLD_SIZE;
+      }
+      hurtWalls(p, p.coor, future);
     }
   }
-  return cells[iy][ix].type;
+  p.coor = future;
 }
-int getCellTypeAt(double[] coor, boolean allowLoop){
-  return getCellTypeAt(coor[0],coor[1],allowLoop);
+public void injectGeneticMaterial(Particle p, double[] futureCoor){
+  Cell c = getCellAt(futureCoor,true);
+  int injectionLocation = c.rotateOn;//c.genome.rotateOn;
+  ArrayList<Codon> toInject = p.UGO_genome.codons;
+  int INJECT_SIZE = p.particleCodonCount();
+  
+  for(int i = 0; i < toInject.size(); i++){
+    int[] info = toInject.get(i).codonInfo;
+    c.genome.codons.add(injectionLocation+i,new Codon(info,1.0));
+  }
+  if(c.performerOn >= c.rotateOn){
+    c.performerOn += INJECT_SIZE;
+  }
+  c.rotateOn += INJECT_SIZE;
+  tamper(c);
+  removeParticle(p);
+  //Should UGO injection create a waste particle?
+  //Particle newWaste = new Particle(coor,particle_type_waste,-99999);
+  //newWaste.addToCellList();
+  //particles.get(1).add(newWaste);
 }
-Cell getCellAt(double x, double y, boolean allowLoop){
-  int ix = (int)x;
-  int iy = (int)y;
-  if(allowLoop){
-    ix = (ix+WORLD_SIZE)%WORLD_SIZE;
-    iy = (iy+WORLD_SIZE)%WORLD_SIZE;
-  }else{
-    if(ix < 0 || ix >= WORLD_SIZE || iy < 0 || iy >= WORLD_SIZE){
-      return null;
+public void hurtWalls(Particle p, double[] coor, double[] future){
+  Cell p_cell = getCellAt(coor,true);
+  if(p_cell.cellType >= VirusInfo.cell_type_cell){
+    p_cell.hurtWall(1);
+  }
+  p_cell.removeParticleFromCell(p);
+  Cell n_cell = getCellAt(future,true);
+  if(n_cell.cellType >= VirusInfo.cell_type_cell){
+    n_cell.hurtWall(1);
+  }
+  n_cell.addParticleToCell(p);
+}
+public void iterateParticle(Particle p){
+  for(int dim = 0; dim < 2; dim++){
+    moveDim(p, dim);
+  }
+}
+public void removeParticle(Particle p){
+  particles.get(p.particleType).remove(p);
+  getCellAt(p.coor,true).particlesInCell.get(p.particleType).remove(p);
+}
+public void addToCellList(Particle p){
+  Cell cellIn = getCellAt(p.coor,true);
+  cellIn.addParticleToCell(p);
+}
+void doParticleCountControl(){
+  ArrayList<Particle> foods = particles.get(0);
+  while(foods.size() < foodLimit){
+    int choiceX = -1;
+    int choiceY = -1;
+    while(choiceX == -1 || cells[choiceY][choiceX].cellType >= VirusInfo.cell_type_wall){
+      choiceX = (int)random(0,WORLD_SIZE);
+      choiceY = (int)random(0,WORLD_SIZE);
+    }
+    double extraX = random(0.3,0.7);
+    double extraY = random(0.3,0.7);
+    double x = choiceX+extraX;
+    double y = choiceY+extraY;
+    double[] coor = {x,y};
+    Particle newFood = new Particle(coor,VirusInfo.particle_type_food,frameCount);
+    foods.add(newFood);
+    //newFood.addToCellList();
+    addToCellList(newFood);
+  }
+  
+  ArrayList<Particle> wastes = particles.get(1);
+  if(wastes.size() > foodLimit){
+    removeWasteTimer -= (wastes.size()-foodLimit)*REMOVE_WASTE_SPEED_MULTI;
+    if(removeWasteTimer < 0){
+      int choiceIndex = -1;
+      int iter = 0;
+      while(iter < 50 && (choiceIndex == -1 || getCellAt(wastes.get(choiceIndex).coor,true).cellType == VirusInfo.cell_type_cell)){
+        choiceIndex = (int)(Math.random()*wastes.size());
+      } // If possible, choose a particle that is NOT in a cell at the moment.
+      //wastes.get(choiceIndex).removeParticle();
+      removeParticle(wastes.get(choiceIndex));
+      removeWasteTimer++;
     }
   }
-  return cells[iy][ix];
 }
-Cell getCellAt(double[] coor, boolean allowLoop){
-  return getCellAt(coor[0],coor[1],allowLoop);
-}
-boolean cellTransfer(double x1, double y1, double x2, double y2){
-  int ix1 = (int)Math.floor(x1);
-  int iy1 = (int)Math.floor(y1);
-  int ix2 = (int)Math.floor(x2);
-  int iy2 = (int)Math.floor(y2);
-  return (ix1 != ix2 || iy1 != iy2);
-}
-boolean cellTransfer(double[] coor1, double[] coor2){
-  return cellTransfer(coor1[0], coor1[1], coor2[0], coor2[1]);
-}
-double loopIt(double x, double len, boolean evenSplit){
-  if(evenSplit){
-    while(x >= len*0.5){
-      x -= len;
-    }
-    while(x < -len*0.5){
-      x += len;
-    }
-  }else{
-    while(x > len-0.5){
-      x -= len;
-    }
-    while(x < -0.5){
-      x += len;
-    }
+public void tamper(Cell c){
+  if(!c.tampered){
+    c.tampered = true;
+    cellCounts[0]--;
+    cellCounts[1]++;
   }
-  return x;
-}
-int loopItInt(int x, int len){
-  return (x+len*10)%len;
-}
-color intToColor(int[] c){
-  return color(c[0],c[1],c[2]);
-}
-color transperize(color col, double trans){
-  float alpha = (float)(trans*255);
-  return color(red(col),green(col),blue(col),alpha);
-}
-String infoToString(int[] info){
-  String result = info[0]+""+info[1];
-  if(info[1] == 7){
-    result += codonValToChar(info[2])+""+codonValToChar(info[3]);
-  }
-  return result;
-}
-int[] stringToInfo(String str){
-  int[] info = new int[4];
-  for(int i = 0; i < 2; i++){
-    info[i] = Integer.parseInt(str.substring(i,i+1));
-  }
-  if(info[1] == 7){
-    for(int i = 2; i < 4; i++){
-      char c = str.charAt(i);
-      info[i] = codonCharToVal(c);
-    }
-  }
-  return info;
 }
