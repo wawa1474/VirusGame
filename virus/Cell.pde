@@ -150,7 +150,7 @@ class Cell{
           daLine(handCoor,singleLaserCoor);
         }
       }else{
-        double[] targetCoor = laserTarget.coor;
+        double[] targetCoor = laserTarget.getPos();//laserTarget.coor
         daLine(handCoor,targetCoor);
       }
     }
@@ -227,7 +227,7 @@ class Cell{
           
           case VirusInfo.Codon_Minor_wall:
             energy += (1-energy)*E_RECIPROCAL*0.2;
-            hurtWall(26,VirusInfo.particle_type_none,0);
+            hurtWall(26,VirusInfo.particle_type_none,0);//PARTICLES ARE BAD
             laserWall();
             break;
         }
@@ -246,7 +246,7 @@ class Cell{
             break;
           
           case VirusInfo.Codon_Minor_wall:
-            die();
+            die();//PARTICLES ARE BAD
             break;
         }
         break;
@@ -377,8 +377,9 @@ class Cell{
     double[] startCoor = getHandCoor();
     double[] newUGOcoor = new double[]{startCoor[0],startCoor[1],startCoor[0]+ugo_vx,startCoor[1]+ugo_vy};
     Particle newUGO = new Particle(newUGOcoor,VirusInfo.particle_type_ugo,memory,frameCount);
-    particles.get(2).add(newUGO);//PARTICLES ARE BAD
+    particles.get(VirusInfo.particle_type_ugo).add(newUGO);//PARTICLES ARE BAD
     addToCellList(newUGO);//PARTICLES ARE BAD
+    //addParticleToCell(newUGO);
     laserTarget = newUGO;
     
     String[] memoryParts = memory.split("-");
@@ -415,11 +416,13 @@ class Cell{
   }
   public void eat(Particle food){//PARTICLES ARE BAD
     if(food.particleType == VirusInfo.particle_type_food){
-      Particle newWaste = new Particle(food.coor,VirusInfo.particle_type_waste,-99999);
+      Particle newWaste = new Particle(food.getPos(),VirusInfo.particle_type_waste,-99999);//new Particle(food.coor,VirusInfo.particle_type_waste,-99999);
       shootLaserAt(newWaste);
       addToCellList(newWaste);//PARTICLES ARE BAD
-      particles.get(1).add(newWaste);//PARTICLES ARE BAD
+      particles.get(VirusInfo.particle_type_waste).add(newWaste);//PARTICLES ARE BAD
       removeParticle(food);//PARTICLES ARE BAD
+      //removeParticleFromCell(food);
+      //addParticleToCell(newWaste);
       energy += (1-energy)*E_RECIPROCAL;
     }else{
       shootLaserAt(food);
@@ -455,33 +458,57 @@ class Cell{
     double[] oldCoor = waste.copyCoor();
     for(int dim = 0; dim < 2; dim++){
       if(dire[chosen][dim] == -1){
-        waste.coor[dim] = Math.floor(waste.coor[dim])-EPS;
+        waste.setPos(dim, Math.floor(waste.getPos(dim))-EPS);//waste.coor[dim] = Math.floor(waste.getPos(dim))-EPS;//waste.setPos(dim, Math.floor(waste.getPos(dim))-EPS);//waste.coor[dim] = Math.floor(waste.coor[dim])-EPS;//
         waste.velo[dim] = -Math.abs(waste.velo[dim]);
       }else if(dire[chosen][dim] == 1){
-        waste.coor[dim] = Math.ceil(waste.coor[dim])+EPS;
+        waste.setPos(dim, Math.ceil(waste.getPos(dim))+EPS);//waste.coor[dim] = Math.ceil(waste.getPos(dim))+EPS;//waste.setPos(dim, Math.ceil(waste.getPos(dim))+EPS);//waste.coor[dim] = Math.ceil(waste.coor[dim])+EPS;//
         waste.velo[dim] = Math.abs(waste.velo[dim]);
       }
       waste.loopCoor(dim);
     }
     Cell p_cell = getCellAt(oldCoor,true);//PARTICLES ARE BAD
     p_cell.removeParticleFromCell(waste);//PARTICLES ARE BAD
-    Cell n_cell = getCellAt(waste.coor,true);//PARTICLES ARE BAD
+    Cell n_cell = getCellAt(waste.getPos(),true);//PARTICLES ARE BAD//getCellAt(waste.coor,true);
     n_cell.addParticleToCell(waste);//PARTICLES ARE BAD
     laserT = frameCount;
     laserTarget = waste;
   }
+  //public void pushOut(Particle waste){//PARTICLES ARE BAD
+  //  int[][] dire = {{0,1},{0,-1},{1,0},{-1,0}};
+  //  int chosen = -1;
+  //  while(chosen == -1 || cells[y+dire[chosen][1]][x+dire[chosen][0]].cellType != VirusInfo.cell_type_none){
+  //    chosen = (int)random(0,4);
+  //  }
+  //  double[] oldCoor = waste.copyCoor();
+  //  for(int dim = 0; dim < 2; dim++){
+  //    if(dire[chosen][dim] == -1){
+  //      waste.coor[dim] = Math.floor(waste.coor[dim])-EPS;
+  //      waste.velo[dim] = -Math.abs(waste.velo[dim]);
+  //    }else if(dire[chosen][dim] == 1){
+  //      waste.coor[dim] = Math.ceil(waste.coor[dim])+EPS;
+  //      waste.velo[dim] = Math.abs(waste.velo[dim]);
+  //    }
+  //    waste.loopCoor(dim);
+  //  }
+  //  Cell p_cell = getCellAt(oldCoor,true);//PARTICLES ARE BAD
+  //  p_cell.removeParticleFromCell(waste);//PARTICLES ARE BAD
+  //  Cell n_cell = getCellAt(waste.coor,true);//PARTICLES ARE BAD
+  //  n_cell.addParticleToCell(waste);//PARTICLES ARE BAD
+  //  laserT = frameCount;
+  //  laserTarget = waste;
+  //}
   public void tickGene(){
     geneTimer += GENE_TICK_TIME;
     rotateOn = (rotateOn+1)%getGenomeLength();
   }
-  public void hurtWall(double multi){
-    hurtWall(multi, VirusInfo.particle_type_none, 0);
+  public void hurtWall(double multi){//PARTICLES ARE BAD
+    hurtWall(multi, VirusInfo.particle_type_none, 0);//PARTICLES ARE BAD
   }
-  public void hurtWall(double multi, int particleType, int codonCount){
+  public void hurtWall(double multi, int particleType, int codonCount){//PARTICLES ARE BAD
     if(cellType >= VirusInfo.cell_type_cell){
       wallHealth -= (((WALL_DAMAGE*multi)*VirusInfo.CellWallDamageMult) / 10) * ((particleType != VirusInfo.particle_type_ugo) ? 10 : 10-10/codonCount);
       if(wallHealth <= 0){
-        die();
+        die();//PARTICLES ARE BAD
       }
     }
   }
@@ -489,7 +516,8 @@ class Cell{
     for(int i = 0; i < getGenomeLength(); i++){
       Particle newWaste = new Particle(getCodonCoor(i,genome.CODON_DIST),VirusInfo.particle_type_waste,-99999);
       addToCellList(newWaste);//PARTICLES ARE BAD
-      particles.get(1).add(newWaste);//PARTICLES ARE BAD
+      particles.get(VirusInfo.particle_type_waste).add(newWaste);//PARTICLES ARE BAD
+      //addParticleToCell(newWaste);
     }
     cellType = VirusInfo.cell_type_none;
     if(this == selectedCell){
@@ -507,10 +535,10 @@ class Cell{
   }
   public void removeParticleFromCell(Particle food){
     ArrayList<Particle> myList = particlesInCell.get(food.particleType);
+    //myList.remove(food);
     for(int i = 0; i < myList.size(); i++){
       if(myList.get(i) == food){
         myList.remove(i);
-        //myList.remove(food);
       }
     }
   }

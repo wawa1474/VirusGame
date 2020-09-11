@@ -156,7 +156,7 @@ void drawParticles(){
     ArrayList<Particle> sparticles = particles.get(z);
     for(int i = 0; i < sparticles.size(); i++){
       Particle p = sparticles.get(i);
-      p.drawParticle(trueXtoAppX(p.coor[0]),trueYtoAppY(p.coor[1]),trueStoAppS(1));
+      p.drawParticle(trueXtoAppX(p.getPos(0)),trueYtoAppY(p.getPos(1)),trueStoAppS(1));//p.coor[0]
     }
   }
 }
@@ -381,10 +381,10 @@ void drawCellStats(){
     textFont(font,32);
     text("Inside this cell,",555,200);
     text("there are:",555,232);
-    text(selectedCell.getParticleCountString(-1,"particle"),555,296);
-    text("("+selectedCell.getParticleCountString(0,"food")+")",555,328);
-    text("("+selectedCell.getParticleCountString(1,"waste")+")",555,360);
-    text("("+selectedCell.getParticleCountString(2,"UGO")+")",555,392);
+    text(selectedCell.getParticleCountString(VirusInfo.particle_type_none,"particle"),555,296);
+    text("("+selectedCell.getParticleCountString(VirusInfo.particle_type_food,"food")+")",555,328);
+    text("("+selectedCell.getParticleCountString(VirusInfo.particle_type_waste,"waste")+")",555,360);
+    text("("+selectedCell.getParticleCountString(VirusInfo.particle_type_ugo,"UGO")+")",555,392);
     drawBar(color(255,255,0),selectedCell.energy,"Energy",290);
     drawBar(color(210,50,210),selectedCell.wallHealth,"Wall health",360);
   }
@@ -535,7 +535,7 @@ void produceUGO(double[] coor){
   if(getCellAt(coor,false) != null && getCellAt(coor,false).cellType == VirusInfo.cell_type_none){
     String genomeString = UGOcell.genome.getGenomeString();
     Particle newUGO = new Particle(coor,VirusInfo.particle_type_ugo,genomeString,frameCount);
-    particles.get(2).add(newUGO);
+    particles.get(VirusInfo.particle_type_ugo).add(newUGO);
     //newUGO.addToCellList();
     addToCellList(newUGO);
     lastEditTimeStamp = frameCount;
@@ -543,12 +543,13 @@ void produceUGO(double[] coor){
 }
 public void moveDim(Particle p, int d)
 {
-  float visc = (getCellTypeAt(p.coor,true) == 0) ? 1 : 0.5;
+  float visc = (getCellTypeAt(p.getPos(),true) == 0) ? 1 : 0.5;//getCellTypeAt(p.coor,true)
   double[] future = p.copyCoor();
-  future[d] = p.coor[d]+p.velo[d]*visc*PLAY_SPEED;
-  if(cellTransfer(p.coor, future)){
-    int currentType = getCellTypeAt(p.coor,true);
-    int futureType = getCellTypeAt(future,true);
+  future[d] = p.getPos(d)+p.velo[d]*visc*PLAY_SPEED;
+  if(cellTransfer(p.getPos(), future)){//cellTransfer(p.coor, future)
+    int currentType = getCellTypeAt(p.getPos(),true);//getCellTypeAt(p.coor,true)
+    Cell futureCell = getCellAt(future,true);
+    int futureType = futureCell.cellType;//getCellTypeAt(future,true);
     if(p.particleType == VirusInfo.particle_type_ugo && currentType == VirusInfo.cell_type_none && futureType == VirusInfo.cell_type_cell && p.particleCodonCount()+getCellAt(future,true).getGenomeLength() <= MAX_CODON_COUNT)
     { // there are few enough codons that we can fit in the new material!
       injectGeneticMaterial(p, future);  // UGO is going to inject material into a cell!
@@ -558,21 +559,21 @@ public void moveDim(Particle p, int d)
       Cell b_cell = getCellAt(future,true);
       if(b_cell.cellType >= VirusInfo.cell_type_cell)
       {
-        b_cell.hurtWall(1, p.particleType, p.particleCodonCount());
+        b_cell.hurtWall(1, p.particleType, p.particleCodonCount());//PARTICLES ARE BAD
       }
       if(p.velo[d] >= 0)
       {
         p.velo[d] = -Math.abs(p.velo[d]);
-        future[d] = (float)Math.ceil(p.coor[d])-EPS;
+        future[d] = (float)Math.ceil(p.getPos(d))-EPS;
       }else
       {
         p.velo[d] = Math.abs(p.velo[d]);
-        future[d] = (float)Math.floor(p.coor[d])+EPS;
+        future[d] = (float)Math.floor(p.getPos(d))+EPS;
       }
-      Cell t_cell = getCellAt(p.coor,true);
+      Cell t_cell = getCellAt(p.getPos(),true);//getCellAt(p.coor,true)
       if(t_cell.cellType >= VirusInfo.cell_type_cell)
       {
-        t_cell.hurtWall(1, p.particleType, p.particleCodonCount());
+        t_cell.hurtWall(1, p.particleType, p.particleCodonCount());//PARTICLES ARE BAD
       }
     }
     else
@@ -585,10 +586,16 @@ public void moveDim(Particle p, int d)
       {
         future[d] += WORLD_SIZE;
       }
-      hurtWalls(p, p.coor, future);
+      hurtWalls(p, p.getPos(), future);//hurtWalls(p, p.coor, future)
+      if(futureType == VirusInfo.cell_type_cell)//need to rewrite pos to use VECTORS!
+      {
+        //move particle into cell
+        //futureCell.addParticleToCell(p);
+        //particles.remove(p);
+      }
     }
   }
-  p.coor = future;
+  p.setPos(future);//p.coor = future
 }
 public void injectGeneticMaterial(Particle p, double[] futureCoor){
   Cell c = getCellAt(futureCoor,true);
@@ -614,12 +621,12 @@ public void injectGeneticMaterial(Particle p, double[] futureCoor){
 public void hurtWalls(Particle p, double[] coor, double[] future){
   Cell p_cell = getCellAt(coor,true);
   if(p_cell.cellType >= VirusInfo.cell_type_cell){
-    p_cell.hurtWall(1);
+    p_cell.hurtWall(1);//PARTICLES ARE BAD
   }
   p_cell.removeParticleFromCell(p);
   Cell n_cell = getCellAt(future,true);
   if(n_cell.cellType >= VirusInfo.cell_type_cell){
-    n_cell.hurtWall(1);
+    n_cell.hurtWall(1);//PARTICLES ARE BAD
   }
   n_cell.addParticleToCell(p);
 }
@@ -630,14 +637,14 @@ public void iterateParticle(Particle p){
 }
 public void removeParticle(Particle p){
   particles.get(p.particleType).remove(p);
-  getCellAt(p.coor,true).particlesInCell.get(p.particleType).remove(p);
+  getCellAt(p.getPos(),true).particlesInCell.get(p.particleType).remove(p);//getCellAt(p.coor,true).particlesInCell.get(p.particleType).remove(p)
 }
 public void addToCellList(Particle p){
-  Cell cellIn = getCellAt(p.coor,true);
+  Cell cellIn = getCellAt(p.getPos(),true);//getCellAt(p.coor,true)
   cellIn.addParticleToCell(p);
 }
 void doParticleCountControl(){
-  ArrayList<Particle> foods = particles.get(0);
+  ArrayList<Particle> foods = particles.get(VirusInfo.particle_type_food);
   while(foods.size() < foodLimit){
     int choiceX = -1;
     int choiceY = -1;
@@ -656,13 +663,13 @@ void doParticleCountControl(){
     addToCellList(newFood);
   }
   
-  ArrayList<Particle> wastes = particles.get(1);
+  ArrayList<Particle> wastes = particles.get(VirusInfo.particle_type_waste);
   if(wastes.size() > foodLimit){
     removeWasteTimer -= (wastes.size()-foodLimit)*REMOVE_WASTE_SPEED_MULTI;
     if(removeWasteTimer < 0){
       int choiceIndex = -1;
       int iter = 0;
-      while(iter < 50 && (choiceIndex == -1 || getCellAt(wastes.get(choiceIndex).coor,true).cellType == VirusInfo.cell_type_cell)){
+      while(iter < 50 && (choiceIndex == -1 || getCellAt(wastes.get(choiceIndex).getPos(),true).cellType == VirusInfo.cell_type_cell)){//getCellAt(wastes.get(choiceIndex).coor,true).cellType
         choiceIndex = (int)(Math.random()*wastes.size());
       } // If possible, choose a particle that is NOT in a cell at the moment.
       //wastes.get(choiceIndex).removeParticle();
