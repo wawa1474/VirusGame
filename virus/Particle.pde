@@ -12,9 +12,9 @@ class Particle{
     return coor;
   }
   
-  public double getPos(int d){
+  public double getPos(int i){
     //return (double)coor[d];
-    return coor[d];
+    return coor[i];
   }
   
   public void setPos(double[] d){
@@ -26,6 +26,18 @@ class Particle{
   public void setPos(int i, double d){
     //coor[i] = (float)d;
     coor[i] = d;
+  }
+  
+  public void updatePos(int i, double d){
+    coor[i] += d;
+  }
+  
+  public void setVel(int i, double d){
+    velo[i] = d;
+  }
+  
+  public double getVel(int i){
+    return velo[i];
   }
   
   public Particle(double[] tcoor, int ttype, int b){
@@ -87,14 +99,14 @@ class Particle{
   public void loopCoor(int d){
     while(getPos(d) >= WORLD_SIZE){
       //coor[d] -= WORLD_SIZE;
-      setPos(d, getPos(d) - WORLD_SIZE);
+      updatePos(d, -WORLD_SIZE);
     }
     while(getPos(d) < 0){
       //coor[d] += WORLD_SIZE;
-      setPos(d, getPos(d) + WORLD_SIZE);
+      updatePos(d, WORLD_SIZE);
     }
   }
-  int particleCodonCount(){
+  public int particleCodonCount(){
     return (UGO_genome!=null)?UGO_genome.genomeCodonCount():0;
   }
 }

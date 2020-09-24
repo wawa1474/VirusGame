@@ -86,6 +86,8 @@ static class VirusInfo{
   public final static int Codon_Minor_rgl_end = 12;
   
   public final static String Codon_Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  public final static String Codon_Delim = "-";
+  public final static String Codon_None_None = "" + Codon_Chars.charAt(0) + Codon_Chars.charAt(0);
   
   public final static boolean[] Codon_Minor_HasExtraData = {false,false,false,false,false,false,false,true,true,true,true,false,false};
   

@@ -6,7 +6,7 @@ class Genome{
   
   public Genome(String s, boolean isUGOp){
     codons = new ArrayList<Codon>();
-    String[] parts = (s!=null)?s.split("-"):new String[0];
+    String[] parts = (s!=null)?s.split(VirusInfo.Codon_Delim):new String[0];
     for(int i = 0; i < parts.length; i++){
       int[] info = VirusInfo.stringToInfo(parts[i]);
       codons.add(new Codon(info,1.0));
@@ -22,7 +22,7 @@ class Genome{
       getCodon(i).draw(CODON_DIST, VIS_GENOME_LENGTH, i);
     }
   }
-  void hurtCodons(){
+  public void hurtCodons(){
     for(int i = 0; i < genomeCodonCount(); i++){
       Codon c = getCodon(i);
       if(c.hasSubstance()){
@@ -30,7 +30,7 @@ class Genome{
       }
     }
   }
-  int getWeakestCodon(){
+  public int getWeakestCodon(){
     double record = 9999;
     int holder = -1;
     for(int i = 0; i < genomeCodonCount(); i++){
@@ -42,41 +42,50 @@ class Genome{
     }
     return holder;
   }
-  String getGenomeString(){
+  public String getGenomeString(){
     String str = "";
     for(int i = 0; i < genomeCodonCount(); i++){
       Codon c = getCodon(i);
       str = str+c.infoToString();
       if(i < genomeCodonCount()-1){
-        str = str+"-";
+        str = str+VirusInfo.Codon_Delim;
       }
     }
     return str;
   }
-  String getGenomeStringShortened(){
+  public String getGenomeStringShortened(){
     int limit = max(1,genomeCodonCount()-1);
     String str = "";
     for(int i = 0; i < limit; i++){
       Codon c = getCodon(i);
       str = str+c.infoToString();
       if(i < limit-1){
-        str = str+"-";
+        str = str+VirusInfo.Codon_Delim;
       }
     }
     return str;
   }
-  String getGenomeStringLengthened(){
+  public String getGenomeStringLengthened(){
     if(genomeCodonCount() == VirusInfo.maxUGOLength){
       return getGenomeString();
     }else{
-      return getGenomeString()+"-AA";
+      return getGenomeString()+VirusInfo.Codon_Delim+VirusInfo.Codon_None_None;//"-AA";
     }
   }
-  int genomeCodonCount(){
+  public int genomeCodonCount(){
     return (codons!=null)?codons.size():0;
   }
-  Codon getCodon(int i){
+  public Codon getCodon(int i){
     int len = genomeCodonCount();
     return (codons != null && len != 0 || i >= len)?codons.get(i):null;
+  }
+  public ArrayList<Codon> getCodons(){
+    return codons;
+  }
+  public void addCodon(Codon c){
+    codons.add(c);
+  }
+  public void addCodon(int i, Codon c){
+    codons.add(i, c);
   }
 }

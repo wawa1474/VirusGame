@@ -74,7 +74,8 @@ void setup(){
   //}
   size(1728,972);
   noSmooth();
-  UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,"AA-AA-AA-AA-AA");
+  //UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,"AA-AA-AA-AA-AA");//EF-EHee-FHdh-EG-GA
+  UGOcell = new Cell(-1,-1,VirusInfo.cell_type_cell,0,1,"EF-EHee-FHdh-EG-GA");//EF-EHee-FHdh-EG-GA
 }
 void setupWorld(){
   frameCount = 0;
@@ -545,7 +546,7 @@ public void moveDim(Particle p, int d)
 {
   float visc = (getCellTypeAt(p.getPos(),true) == 0) ? 1 : 0.5;//getCellTypeAt(p.coor,true)
   double[] future = p.copyCoor();
-  future[d] = p.getPos(d)+p.velo[d]*visc*PLAY_SPEED;
+  future[d] = p.getPos(d)+p.getVel(d)*visc*PLAY_SPEED;
   if(cellTransfer(p.getPos(), future)){//cellTransfer(p.coor, future)
     int currentType = getCellTypeAt(p.getPos(),true);//getCellTypeAt(p.coor,true)
     Cell futureCell = getCellAt(future,true);
@@ -561,13 +562,13 @@ public void moveDim(Particle p, int d)
       {
         b_cell.hurtWall(1, p.particleType, p.particleCodonCount());//PARTICLES ARE BAD
       }
-      if(p.velo[d] >= 0)
+      if(p.getVel(d) >= 0)
       {
-        p.velo[d] = -Math.abs(p.velo[d]);
+        p.setVel(d, -Math.abs(p.getVel(d)));
         future[d] = (float)Math.ceil(p.getPos(d))-EPS;
       }else
       {
-        p.velo[d] = Math.abs(p.velo[d]);
+        p.setVel(d, Math.abs(p.getVel(d)));
         future[d] = (float)Math.floor(p.getPos(d))+EPS;
       }
       Cell t_cell = getCellAt(p.getPos(),true);//getCellAt(p.coor,true)
@@ -600,12 +601,12 @@ public void moveDim(Particle p, int d)
 public void injectGeneticMaterial(Particle p, double[] futureCoor){
   Cell c = getCellAt(futureCoor,true);
   int injectionLocation = c.rotateOn;//c.genome.rotateOn;
-  ArrayList<Codon> toInject = p.UGO_genome.codons;
+  ArrayList<Codon> toInject = p.UGO_genome.getCodons();
   int INJECT_SIZE = p.particleCodonCount();
   
   for(int i = 0; i < toInject.size(); i++){
     int[] info = toInject.get(i).codonInfo;
-    c.genome.codons.add(injectionLocation+i,new Codon(info,1.0));
+    c.genome.addCodon(injectionLocation+i,new Codon(info,1.0));
   }
   if(c.performerOn >= c.rotateOn){
     c.performerOn += INJECT_SIZE;

@@ -10,6 +10,16 @@ class Cell{
   boolean tampered = false;
   ArrayList<ArrayList<Particle>> particlesInCell = new ArrayList<ArrayList<Particle>>(0);
   
+  int rotateOn = 0;
+  int performerOn = 0;
+  int directionOn = VirusInfo.genome_hand_outward;
+  double appRO = 0;
+  double appPO = 0;
+  double appDO = 0;
+  double VISUAL_TRANSITION = 0.38;
+  float HAND_DIST = 32;
+  float HAND_LEN = 7;
+  
   ArrayList<double[]> laserCoor = new ArrayList<double[]>();
   Particle laserTarget = null;
   int laserT = -9999;
@@ -79,6 +89,7 @@ class Cell{
       strokeWeight(1);
       drawInterpreter();
       drawEnergy();
+      //noStroke();
       genome.drawCodons();
       //genome.drawHand();
       drawHand();
@@ -89,21 +100,13 @@ class Cell{
       drawLaser();
     }
   }
-  int rotateOn = 0;
-  int performerOn = 0;
-  int directionOn = VirusInfo.genome_hand_outward;
-  double appRO = 0;
-  double appPO = 0;
-  double appDO = 0;
-  double VISUAL_TRANSITION = 0.38;
-  float HAND_DIST = 32;
-  float HAND_LEN = 7;
   public void drawHand(){
     double appPOAngle = (float)(appPO*2*PI/getGenomeLength());
     double appDOAngle = (float)(appDO*PI);
     strokeWeight(1);
     noFill();
-    stroke(transperize(handColor,0.5));
+    stroke(handColor, 127);//transperize(handColor,0.5));
+    //stroke(transperize(handColor,0.5));
     ellipse(0,0,HAND_DIST*2,HAND_DIST*2);
     pushMatrix();
     rotate((float)appPOAngle);
@@ -142,7 +145,9 @@ class Cell{
   public void drawLaser(){
     if(frameCount < laserT+LASER_LINGER_TIME){
       double alpha = (double)((laserT+LASER_LINGER_TIME)-frameCount)/LASER_LINGER_TIME;
-      stroke(transperize(handColor,alpha));
+      //float alpha = ((laserT+LASER_LINGER_TIME)-frameCount)/LASER_LINGER_TIME;
+      stroke(handColor, (float)(255*alpha));//transperize(handColor,alpha));
+      //stroke(transperize(handColor,alpha));
       strokeWeight((float)(0.033333*BIG_FACTOR));
       double[] handCoor = getHandCoor();
       if(laserTarget == null){
@@ -352,7 +357,7 @@ class Cell{
       Codon c = genome.getCodon(index);
       memory = memory+c.infoToString();
       if(pos < end){
-        memory = memory+"-";
+        memory = memory+VirusInfo.Codon_Delim;
       }
       laserCoor.add(getCodonCoor(index,genome.CODON_DIST));
     }
@@ -382,14 +387,14 @@ class Cell{
     //addParticleToCell(newUGO);
     laserTarget = newUGO;
     
-    String[] memoryParts = memory.split("-");
+    String[] memoryParts = memory.split(VirusInfo.Codon_Delim);
     for(int i = 0; i < memoryParts.length; i++){
       useEnergy();
     }
   }
   public void writeInwards(int start, int end){
     laserTarget = null;
-    String[] memoryParts = memory.split("-");
+    String[] memoryParts = memory.split(VirusInfo.Codon_Delim);
     for(int pos = start; pos <= end; pos++){
       int index = loopItInt(performerOn+pos,getGenomeLength());
       Codon c = genome.getCodon(index);
@@ -459,10 +464,10 @@ class Cell{
     for(int dim = 0; dim < 2; dim++){
       if(dire[chosen][dim] == -1){
         waste.setPos(dim, Math.floor(waste.getPos(dim))-EPS);//waste.coor[dim] = Math.floor(waste.getPos(dim))-EPS;//waste.setPos(dim, Math.floor(waste.getPos(dim))-EPS);//waste.coor[dim] = Math.floor(waste.coor[dim])-EPS;//
-        waste.velo[dim] = -Math.abs(waste.velo[dim]);
+        waste.setVel(dim, -Math.abs(waste.getVel(dim)));
       }else if(dire[chosen][dim] == 1){
         waste.setPos(dim, Math.ceil(waste.getPos(dim))+EPS);//waste.coor[dim] = Math.ceil(waste.getPos(dim))+EPS;//waste.setPos(dim, Math.ceil(waste.getPos(dim))+EPS);//waste.coor[dim] = Math.ceil(waste.coor[dim])+EPS;//
-        waste.velo[dim] = Math.abs(waste.velo[dim]);
+        waste.setVel(dim, Math.abs(waste.getVel(dim)));
       }
       waste.loopCoor(dim);
     }
@@ -608,12 +613,14 @@ class Cell{
       }
     }
     return x;
+    //return x%len;//causes interpreter to jump CC back to start
   }
   int loopItInt(int x, int len){
-    return (x+len*10)%len;
+    //return (x+len*10)%len;
+    return x%len;
   }
-  color transperize(color col, double trans){
-    float alpha = (float)(trans*255);
-    return color(red(col),green(col),blue(col),alpha);
-  }
+  //color transperize(color col, double trans){
+  //  float alpha = (float)(trans*255);
+  //  return color(red(col),green(col),blue(col),alpha);
+  //}
 }
